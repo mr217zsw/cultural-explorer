@@ -8,35 +8,72 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+// ============================================================
+// 1. 地区表（v4.0 扩展）
+// ============================================================
 model Region {
-  id            String       @id @default(cuid())
-  name          String       @unique
+  id            String   @id @default(cuid())
+  name          String   @unique
   nameEn        String?
   shortName     String?
   capital       String?
   area          String?
   population    String?
-  description   String       @db.Text
-  geography     String       @db.Text
-  history       String       @db.Text
-  culture       String       @db.Text
+  description   String   @db.Text
+  geography     String   @db.Text
+  history       String   @db.Text
+  culture       String   @db.Text
   coverImage    String?
-  images        String[]     @default([])
+  images        String[] @default([])
   bgmUrl        String?
   audioUrl      String?
-  sortOrder     Int          @default(0)
-  isPublished   Boolean      @default(true)
-  viewCount     Int          @default(0)
-  favoriteCount Int          @default(0)
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  landmarks     Landmark[]
-  questions     Question[]
-  mnemonic      Mnemonic?
-  records       UserRecord[]
-  favorites     Favorite[]
+  sortOrder     Int      @default(0)
+  isPublished   Boolean  @default(true)
+  viewCount     Int      @default(0)
+  favoriteCount Int      @default(0)
+
+  // ===== v4.0 新增字段 =====
+  provinceCode   String?   // 行政区划代码
+  region         String?   // 华东/华北/华南/西南/西北/东北
+  timezone       String?   // 时区
+  language       String?   // 主要方言
+  terrain        String?   @db.Text // 地形地貌
+  climate        String?   @db.Text // 气候特征
+  rivers         String?   @db.Text // 主要河流
+  mountains      String?   @db.Text // 主要山脉
+  historyTimeline Json?    // 历史时间轴 [{ year, event, description, image? }]
+  foundingYear   String?   // 建城/建制年份
+  ancientName    String?   // 古称
+  festivals      String?   @db.Text // 特色节日
+  dialects       String?   @db.Text // 方言特色
+  cuisine        String?   @db.Text // 特色美食概述
+  famousPeople   Json?     // [{ name, dynasty, title, description, avatar? }]
+  heroImage      String?   // 主视觉大图 16:9
+  videoUrl       String?   // 宣传视频
+  audioGuide     String?   // AI配音导览（完整版 5-8分钟）
+  audioShort     String?   // AI配音导览（精华版 1-2分钟）
+  gallery        Json?     // 图库 [{ url, caption, photographer? }]
+  avgRating      Float?    // 用户评分 1-5
+  totalRatings   Int       @default(0)
+  visitCount     Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  landmarks           Landmark[]
+  questions           Question[]
+  mnemonic            Mnemonic?
+  records             UserRecord[]
+  favorites           Favorite[]
+  chapters            Chapter[]
+  timelineEvents      TimelineEvent[]
+  cuisines            Cuisine[]
+  intangibleHeritages IntangibleHeritage[]
 }
 
+// ============================================================
+// 2. 地标景点
+// ============================================================
 model Landmark {
   id          String   @id @default(cuid())
   regionId    String
@@ -52,22 +89,38 @@ model Landmark {
   @@index([regionId])
 }
 
+// ============================================================
+// 3. 题库（v4.0 扩展）
+// ============================================================
 model Question {
   id            String   @id @default(cuid())
   regionId      String
   region        Region   @relation(fields: [regionId], references: [id], onDelete: Cascade)
   question      String   @db.Text
   options       String[]
-  correctAnswer Int
-  difficulty    Int      @default(1)
+  correctAnswer Int      // 单选题正确索引（兼容旧版）
+  difficulty    Int      @default(1) // 1-5星
   category      String   @default("history")
   explanation   String   @db.Text
   sortOrder     Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+
+  // ===== v4.0 新增字段 =====
+  type           String    @default("single") // single | multiple | truefalse
+  correctAnswers Int[]     @default([]) // 多选题多个正确答案索引
+  correctBoolean Boolean?  // 判断题答案
+  tags           String[]  @default([]) // 题目标签
+  wrongCount     Int       @default(0)
+  rightCount     Int       @default(0)
+  passRate       Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   @@index([regionId])
 }
 
+// ============================================================
+// 4. AI记忆口诀
+// ============================================================
 model Mnemonic {
   id              String   @id @default(cuid())
   regionId        String   @unique
@@ -80,6 +133,9 @@ model Mnemonic {
   updatedAt       DateTime @updatedAt
 }
 
+// ============================================================
+// 5. 用户表（v4.0 扩展）
+// ============================================================
 model User {
   id               String       @id @default(cuid())
   openId           String?      @unique
@@ -95,12 +151,25 @@ model User {
   maxStreak        Int          @default(0)
   isActive         Boolean      @default(true)
   lastLoginAt      DateTime?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  records          UserRecord[]
-  favorites        Favorite[]
+
+  // ===== v4.0 新增字段 =====
+  streakDays      Int       @default(0) // 连续签到天数
+  lastCheckinDate DateTime? // 最后签到日期
+  totalPlayTime   Int       @default(0) // 总游戏时间（秒）
+  perfectCount    Int       @default(0) // 满分通关次数
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  records   UserRecord[]
+  favorites Favorite[]
+  badges    UserBadge[]
+  checkins  DailyCheckin[]
 }
 
+// ============================================================
+// 6. 用户答题记录
+// ============================================================
 model UserRecord {
   id             String    @id @default(cuid())
   userId         String
@@ -122,6 +191,9 @@ model UserRecord {
   @@index([regionId])
 }
 
+// ============================================================
+// 7. 收藏
+// ============================================================
 model Favorite {
   id        String   @id @default(cuid())
   userId    String
@@ -132,10 +204,118 @@ model Favorite {
   @@unique([userId, regionId])
 }
 
+// ============================================================
+// 8. 系统配置
+// ============================================================
 model SystemConfig {
   id          String   @id @default(cuid())
   key         String   @unique
   value       Json
   description String?
   updatedAt   DateTime @updatedAt
+}
+
+// ============================================================
+// 9. 内容章节（v4.0 新增）
+// ============================================================
+model Chapter {
+  id          String   @id @default(cuid())
+  regionId    String
+  region      Region   @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  title       String   // 章节标题
+  subtitle    String?  // 副标题
+  content     String   @db.Text // 富文本内容
+  coverImage  String?  // 章节封面
+  audioUrl    String?  // 章节AI配音
+  sortOrder   Int      @default(0)
+  isPublished Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([regionId])
+}
+
+// ============================================================
+// 10. 历史时间轴事件（v4.0 新增）
+// ============================================================
+model TimelineEvent {
+  id          String   @id @default(cuid())
+  regionId    String
+  region      Region   @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  year        String   // 年份
+  yearNum     Int?     // 数字年份（排序用）
+  dynasty     String?  // 朝代
+  title       String   // 事件标题
+  description String   @db.Text
+  imageUrl    String?  // 配图
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([regionId])
+}
+
+// ============================================================
+// 11. 特色美食（v4.0 新增）
+// ============================================================
+model Cuisine {
+  id          String   @id @default(cuid())
+  name        String   // 美食名称
+  description String   @db.Text
+  imageUrl    String?  // 图片
+  category    String?  // 主食/小吃/菜肴/饮品
+  regionId    String
+  region      Region   @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([regionId])
+}
+
+// ============================================================
+// 12. 非物质文化遗产（v4.0 新增）
+// ============================================================
+model IntangibleHeritage {
+  id          String   @id @default(cuid())
+  name        String   // 非遗名称
+  level       String?  // 国家级/省级/市级
+  category    String?  // 传统技艺/传统美术/传统音乐...
+  description String   @db.Text
+  imageUrl    String?
+  regionId    String
+  region      Region   @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([regionId])
+}
+
+// ============================================================
+// 13. 用户勋章（v4.0 新增）
+// ============================================================
+model UserBadge {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badgeId    String   // 勋章ID
+  badgeName  String   // 勋章名称
+  badgeIcon  String   // 勋章图标
+  earnedAt   DateTime @default(now())
+  regionId   String?  // 关联地区
+  isDisplayed Boolean @default(true)
+  @@unique([userId, badgeId])
+  @@index([userId])
+}
+
+// ============================================================
+// 14. 每日签到（v4.0 新增）
+// ============================================================
+model DailyCheckin {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  checkinDate DateTime @default(now())
+  streak      Int      @default(1)
+  reward      Int      @default(10)
+  createdAt   DateTime @default(now())
+  @@unique([userId, checkinDate])
+  @@index([userId])
 }

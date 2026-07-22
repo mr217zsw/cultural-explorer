@@ -1,27 +1,57 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
-import { Type } from 'class-transformer';
-import { IsArray, IsInt, IsOptional, IsString, Max, Min, ValidateNested } from 'class-validator';
+import { Controller, Get, Post, Body, Param, Query, UseGuards, BadRequestException } from '@nestjs/common';
+import { QuizService } from './quiz.service';
+import { QuizV2Service } from './quiz-v2.service';
+import { BadgeService } from '../badge/badge.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../common/current-user.decorator';
-import { QuizService } from './quiz.service';
-
-class StartDto { @IsString() regionId!: string; }
-class SubmitDto { @IsString() questionId!: string; @IsInt() @Min(0) @Max(3) selectedIndex!: number; }
-class AnswerDto { @IsString() questionId!: string; @IsInt() @Min(0) @Max(3) selectedIndex!: number; }
-class CompleteDto {
-  @IsString() regionId!: string;
-  @IsArray() @ValidateNested({ each: true }) @Type(() => AnswerDto) answers!: AnswerDto[];
-  @IsOptional() @IsInt() @Min(0) timeSpent?: number;
-}
 
 @Controller('quiz')
-@UseGuards(JwtAuthGuard)
 export class QuizController {
-  constructor(private readonly quiz: QuizService) {}
-  @Post('start') start(@Body() dto: StartDto) { return this.quiz.start(dto.regionId); }
-  @Post('submit') submit(@Body() dto: SubmitDto) { return this.quiz.submit(dto.questionId, dto.selectedIndex); }
-  @Post('complete') complete(@Body() dto: CompleteDto, @CurrentUser() user: { sub: string }) { return this.quiz.complete(user.sub, dto); }
-  @Get('records') records(@CurrentUser() user: { sub: string }, @Query('regionId') regionId?: string) { return this.quiz.records(user.sub, regionId); }
-  @Get('ranking/:regionId') ranking(@Param('regionId') regionId: string, @Query('limit') limit?: string) { return this.quiz.ranking(regionId, Number(limit ?? 50)); }
-}
+  constructor(
+    private readonly quiz: QuizService,
+    private readonly quizV2: QuizV2Service,
+    private readonly badge: BadgeService,
+  ) {}
 
+  // ===== 旧版 API（兼容） =====
+  @Post('start') @UseGuards(JwtAuthGuard)
+  start(@Body() body: { regionId: string }, @CurrentUser() user: { sub: string }) {
+    return this.quiz.start(user.sub, body.regionId);
+  }
+
+  @Post('submit') @UseGuards(JwtAuthGuard)
+  submit(@Body() body: any, @CurrentUser() user: { sub: string }) {
+    return this.quiz.submit(user.sub, body);
+  }
+
+  @Post('complete') @UseGuards(JwtAuthGuard)
+  async complete(@Body() body: any, @CurrentUser() user: { sub: string }) {
+    const result = await this.quiz.complete(user.sub, body);
+    await this.badge.checkAndAward(user.sub);
+    return result;
+  }
+
+  @Get('records') @UseGuards(JwtAuthGuard)
+  records(@CurrentUser() user: { sub: string }, @Query('regionId') regionId?: string) {
+    return this.quiz.records(user.sub, regionId);
+  }
+
+  @Get('ranking/:regionId')
+  ranking(@Param('regionId') regionId: string, @Query('limit') limit?: string) {
+    return this.quiz.ranking(regionId, Number(limit ?? 20));
+  }
+
+  // ===== V2 API（新版） =====
+  @Post('startV2') @UseGuards(JwtAuthGuard)
+  startV2(@Body() body: { regionId: string; difficulty?: number }, @CurrentUser() user: { sub: string }) {
+    return this.quizV2.start(user.sub, body.regionId, body.difficulty ?? 1);
+  }
+
+  @Post('submitV2') @UseGuards(JwtAuthGuard)
+  async submitV2(@Body() body: { questionId: string; answer: any }, @CurrentUser() user: { sub: string }) {
+    if (!body.questionId) throw new BadRequestException('questionId is required');
+    const result = await this.quizV2.submit(user.sub, body.questionId, body.answer);
+    if (result.isGameOver) await this.badge.checkAndAward(user.sub);
+    return result;
+  }
+}
