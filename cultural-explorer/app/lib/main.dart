@@ -11,7 +11,7 @@ class ApiClient {
   String? token;
 
   Future<dynamic> request(String path, {String method = 'GET', Object? body}) async {
-    final response = await http.Request(method, Uri.parse('$apiBaseUrl$path'))
+    final response = http.Request(method, Uri.parse('$apiBaseUrl$path'))
       ..headers.addAll({'Content-Type': 'application/json', if (token != null) 'Authorization': 'Bearer $token'})
       ..body = body == null ? '' : jsonEncode(body);
     final streamed = await response.send();
@@ -128,6 +128,6 @@ class _QuizPageState extends State<QuizPage> {
     final list = questions;
     if (list == null) return Scaffold(appBar: AppBar(), body: const Center(child: CircularProgressIndicator()));
     final question = list[index] as Map<String, dynamic>;
-    return Scaffold(appBar: AppBar(title: Text('${widget.regionName}闯关 ${index + 1}/${list.length}')), body: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [Text(question['question'], style: Theme.of(context).textTheme.headlineSmall), const SizedBox(height: 24), ...(question['options'] as List<dynamic>).asMap().entries.map((entry) => Padding(padding: const EdgeInsets.only(bottom: 12), child: OutlinedButton(onPressed: () => answer(entry.key), child: Padding(padding: const EdgeInsets.all(14), child: Text(entry.value)))))]));
+    return Scaffold(appBar: AppBar(title: Text('${widget.regionName}闯关 ${index + 1}/${list.length}')), body: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [Text(question['question'], style: Theme.of(context).textTheme.headlineSmall), const SizedBox(height: 24), ...(question['options'] as List<dynamic>).asMap().entries.map((entry) => Padding(padding: const EdgeInsets.only(bottom: 12), child: OutlinedButton(onPressed: () => answer(entry.key), child: Padding(padding: const EdgeInsets.all(14), child: Text(entry.value)))))])));
   }
 }
