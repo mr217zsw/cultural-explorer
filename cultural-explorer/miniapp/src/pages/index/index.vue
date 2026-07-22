@@ -99,20 +99,17 @@ load();
 .empty, .empty text { color: var(--color-text-secondary); font-size: var(--font-md); line-height: var(--leading-relaxed); }
 .empty-icon { font-size: 56rpx; display: block; margin-bottom: var(--space-md); }
 
-.grid { display: flex; flex-wrap: wrap; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22rpx; }
 .region {
-  width: calc(50% - 11rpx);
   min-height: 220rpx;
   padding: var(--space-xl);
-  margin-right: 22rpx;
-  margin-bottom: 22rpx;
+  box-sizing: border-box;
   position: relative;
   display: flex;
   flex-direction: column;
   transition: transform 0.15s, box-shadow 0.15s;
 }
 .region:active { transform: scale(0.97); box-shadow: var(--shadow-card-hover); }
-.region:nth-child(2n) { margin-right: 0; }
 
 .seal { font-size: 52rpx; color: var(--color-primary-light); display: block; line-height: 1; }
 .region-body { margin-top: auto; }
