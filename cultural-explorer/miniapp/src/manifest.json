@@ -4,7 +4,11 @@
   "description": "中国地理历史文化互动学习应用",
   "versionName": "1.0.0",
   "versionCode": "100",
+  "darkmode": false,
   "mp-weixin": { "appid": "", "setting": { "urlCheck": false }, "usingComponents": true },
-  "h5": { "router": { "mode": "hash" } }
+  "h5": { 
+    "router": { "mode": "hash" },
+    "darkmode": false
+  }
 }
 
