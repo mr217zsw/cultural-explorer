@@ -43,4 +43,8 @@ class AuthProvider extends ChangeNotifier {
       return false;
     }
   }
+
+  Future<void> refresh() async {
+    await fetchProfile();
+  }
 }
