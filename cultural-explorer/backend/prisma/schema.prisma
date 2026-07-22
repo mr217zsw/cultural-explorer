@@ -1,0 +1,140 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Region {
+  id            String       @id @default(cuid())
+  name          String       @unique
+  nameEn        String?
+  shortName     String?
+  capital       String?
+  area          String?
+  population    String?
+  description   String       @db.Text
+  geography     String       @db.Text
+  history       String       @db.Text
+  culture       String       @db.Text
+  coverImage    String?
+  images        String[]     @default([])
+  bgmUrl        String?
+  audioUrl      String?
+  sortOrder     Int          @default(0)
+  isPublished   Boolean      @default(true)
+  viewCount     Int          @default(0)
+  favoriteCount Int          @default(0)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  landmarks     Landmark[]
+  questions     Question[]
+  mnemonic      Mnemonic?
+  records       UserRecord[]
+  favorites     Favorite[]
+}
+
+model Landmark {
+  id          String   @id @default(cuid())
+  regionId    String
+  region      Region   @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  name        String
+  description String   @db.Text
+  imageUrl    String?
+  latitude    Float?
+  longitude   Float?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([regionId])
+}
+
+model Question {
+  id            String   @id @default(cuid())
+  regionId      String
+  region        Region   @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  question      String   @db.Text
+  options       String[]
+  correctAnswer Int
+  difficulty    Int      @default(1)
+  category      String   @default("history")
+  explanation   String   @db.Text
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  @@index([regionId])
+}
+
+model Mnemonic {
+  id              String   @id @default(cuid())
+  regionId        String   @unique
+  region          Region   @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  content         String   @db.Text
+  style           String   @default("七言口诀")
+  generationCount Int      @default(1)
+  generatedAt     DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model User {
+  id               String       @id @default(cuid())
+  openId           String?      @unique
+  unionId          String?      @unique
+  deviceId         String?      @unique
+  nickname         String?
+  avatar           String?
+  phone            String?      @unique
+  email            String?      @unique
+  totalScore       Int          @default(0)
+  completedCount   Int          @default(0)
+  completedRegions String[]     @default([])
+  maxStreak        Int          @default(0)
+  isActive         Boolean      @default(true)
+  lastLoginAt      DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  records          UserRecord[]
+  favorites        Favorite[]
+}
+
+model UserRecord {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  regionId       String
+  region         Region    @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  score          Int       @default(0)
+  totalQuestions Int       @default(0)
+  correctCount   Int       @default(0)
+  wrongCount     Int       @default(0)
+  timeSpent      Int?
+  isCompleted    Boolean   @default(false)
+  completedAt    DateTime?
+  answers        Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  @@unique([userId, regionId])
+  @@index([userId])
+  @@index([regionId])
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  regionId  String
+  region    Region   @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@unique([userId, regionId])
+}
+
+model SystemConfig {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       Json
+  description String?
+  updatedAt   DateTime @updatedAt
+}
