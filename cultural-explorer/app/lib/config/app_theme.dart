@@ -72,7 +72,7 @@ class AppTheme {
       ),
 
       // 卡片
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radiusLg),

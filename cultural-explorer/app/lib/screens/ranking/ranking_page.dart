@@ -21,12 +21,14 @@ class _RankingPageState extends State<RankingPage> {
   Future<void> _load() async {
     try {
       final data = await ApiService().request('/user/ranking?limit=100');
-      if (mounted) setState(() {
-        _users = (data as List<dynamic>?) ?? [];
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _users = (data as List<dynamic>?) ?? [];
+          _loading = false;
+        });
+      }
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) { setState(() => _loading = false); }
     }
   }
 

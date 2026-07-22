@@ -24,14 +24,16 @@ class _FavoritesPageState extends State<FavoritesPage> {
     await ApiService().ensureLogin();
     try {
       final data = await ApiService().request('/regions?limit=100');
-      if (mounted) setState(() {
-        _regions = ((data as Map<String, dynamic>)['items'] as List<dynamic>)
-            .where((r) => (r as Map<String, dynamic>)['isFavorited'] == true)
-            .toList();
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _regions = ((data as Map<String, dynamic>)['items'] as List<dynamic>)
+              .where((r) => (r as Map<String, dynamic>)['isFavorited'] == true)
+              .toList();
+          _loading = false;
+        });
+      }
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) { setState(() => _loading = false); }
     }
   }
 

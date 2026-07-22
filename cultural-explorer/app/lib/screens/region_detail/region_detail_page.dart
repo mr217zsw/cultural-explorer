@@ -26,13 +26,15 @@ class _RegionDetailPageState extends State<RegionDetailPage> {
     setState(() => _loading = true);
     try {
       final data = await _api.request('/regions/${widget.id}') as Map<String, dynamic>;
-      if (mounted) setState(() {
-        _region = data;
-        _isFavorited = data['isFavorited'] == true;
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _region = data;
+          _isFavorited = data['isFavorited'] == true;
+          _loading = false;
+        });
+      }
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) { setState(() => _loading = false); }
     }
   }
 
