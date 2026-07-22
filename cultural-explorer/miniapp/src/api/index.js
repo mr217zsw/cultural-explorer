@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 export async function ensureLogin() {
   if (uni.getStorageSync('token')) return;
@@ -18,3 +18,22 @@ export function request(path, options = {}) {
   }));
 }
 
+// API modules
+export const regionApi = {
+  getList: (params = {}) => request(`/regions?limit=50&keyword=${encodeURIComponent(params.keyword || '')}`),
+  getDetail: (id) => request(`/regions/${id}`),
+  toggleFavorite: (id) => request(`/regions/${id}/favorite`, { method: 'POST' }),
+};
+
+export const quizApi = {
+  start: (regionId) => request('/quiz/start', { method: 'POST', data: { regionId } }),
+  complete: (data) => request('/quiz/complete', { method: 'POST', data }),
+  getRecords: (regionId) => request(`/quiz/records?regionId=${regionId}`),
+};
+
+export const userApi = {
+  getProfile: () => request('/user/profile'),
+  updateProfile: (data) => request('/user/profile', { method: 'PUT', data }),
+  getRanking: (limit = 50) => request(`/user/ranking?limit=${limit}`),
+  getStats: () => request('/user/stats'),
+};

@@ -4,4 +4,3 @@ import { MnemonicService } from './mnemonic.service';
 
 @Module({ controllers: [MnemonicController], providers: [MnemonicService] })
 export class MnemonicModule {}
-

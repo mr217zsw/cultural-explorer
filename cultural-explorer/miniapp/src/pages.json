@@ -2,8 +2,13 @@
   "pages": [
     { "path": "pages/index/index", "style": { "navigationBarTitleText": "华夏文化探索" } },
     { "path": "pages/detail/detail", "style": { "navigationBarTitleText": "地区详情" } },
-    { "path": "pages/quiz/quiz", "style": { "navigationBarTitleText": "文化闯关" } }
+    { "path": "pages/quiz/quiz", "style": { "navigationBarTitleText": "文化闯关" } },
+    { "path": "pages/ranking/ranking", "style": { "navigationBarTitleText": "排行榜" } },
+    { "path": "pages/profile/profile", "style": { "navigationBarTitleText": "个人中心" } }
   ],
-  "globalStyle": { "navigationBarBackgroundColor": "#8b1e2d", "navigationBarTextStyle": "white", "backgroundColor": "#fffaf0" }
+  "globalStyle": {
+    "navigationBarBackgroundColor": "#8b1e2d",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#fffaf0"
+  }
 }
-
