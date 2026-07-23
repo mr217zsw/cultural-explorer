@@ -26,7 +26,7 @@ export class BadgeService {
     if (!user) return [];
 
     const existingBadges = await this.prisma.userBadge.findMany({ where: { userId } });
-    const existingIds = new Set(existingBadges.map(b => b.badgeId));
+    const existingIds = new Set(existingBadges.map((b: { badgeId: string }) => b.badgeId));
     const newBadges: typeof BADGES = [];
 
     for (const badge of BADGES) {
@@ -77,12 +77,12 @@ export class BadgeService {
   /** 获取所有勋章定义及用户获取状态 */
   async getAllBadges(userId: string) {
     const earned = await this.prisma.userBadge.findMany({ where: { userId } });
-    const earnedIds = new Set(earned.map(b => b.badgeId));
+    const earnedIds = new Set(earned.map((b: { badgeId: string }) => b.badgeId));
 
     return BADGES.map(b => ({
       ...b,
       earned: earnedIds.has(b.id),
-      earnedAt: earned.find(e => e.badgeId === b.id)?.earnedAt ?? null,
+      earnedAt: earned.find((e: { badgeId: string }) => e.badgeId === b.id)?.earnedAt ?? null,
     }));
   }
 }

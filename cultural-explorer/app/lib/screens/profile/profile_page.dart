@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../config/app_theme.dart';
 import '../../providers/auth_provider.dart';
@@ -16,20 +17,31 @@ class _ProfilePageState extends State<ProfilePage> {
   final _api = ApiService();
   bool _checkedToday = false;
   int _checkinStreak = 0;
+  List<dynamic> _badges = [];
 
   @override
   void initState() {
     super.initState();
     _loadCheckin();
+    _loadBadges();
+  }
+
+  Future<void> _loadBadges() async {
+    try {
+      final badges = await _api.request('/badges/all') as List<dynamic>;
+      if (mounted) setState(() => _badges = badges);
+    } catch (_) {}
   }
 
   Future<void> _loadCheckin() async {
     try {
       final stats = await _api.request('/checkin/stats') as Map<String, dynamic>;
-      if (mounted) setState(() {
-        _checkinStreak = stats['currentStreak'] ?? 0;
-        _checkedToday = _isToday(stats['lastCheckinDate'] as String?);
-      });
+      if (mounted) {
+        setState(() {
+          _checkinStreak = stats['currentStreak'] ?? 0;
+          _checkedToday = _isToday(stats['lastCheckinDate'] as String?);
+        });
+      }
     } catch (_) {}
   }
 
@@ -84,7 +96,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       children: [
                         Container(
                           width: 88, height: 88,
-                          decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(0.2), border: Border.all(color: Colors.white.withOpacity(0.4), width: 3)),
+                          decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.2), border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 3)),
                           alignment: Alignment.center,
                           child: Text(user.nickname?.isNotEmpty == true ? user.nickname![0] : '华', style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.white)),
                         ),
@@ -144,6 +156,43 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ),
 
+                  // 勋章墙
+                  if (_badges.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(AppTheme.spacingLg, 0, AppTheme.spacingLg, AppTheme.spacingSm),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                            const Text('🏅 勋章墙', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                            Text('${_badges.where((b) => b['earned'] == true).length}/${_badges.length}', style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
+                          ]),
+                          const SizedBox(height: AppTheme.spacingSm),
+                          Wrap(
+                            spacing: AppTheme.spacingSm,
+                            runSpacing: AppTheme.spacingSm,
+                            children: _badges.map((b) {
+                              final earned = b['earned'] == true;
+                              return Container(
+                                width: 68,
+                                padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingSm, horizontal: 4),
+                                decoration: BoxDecoration(
+                                  color: earned ? AppTheme.surface : Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                                  border: Border.all(color: earned ? AppTheme.accent.withValues(alpha: 0.3) : Colors.grey.shade200),
+                                ),
+                                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                                  Text(earned ? (b['badgeIcon'] ?? '🏅') as String : '🔒', style: const TextStyle(fontSize: 22)),
+                                  const SizedBox(height: 2),
+                                  Text(earned ? (b['badgeName'] ?? '') as String : '未解锁', style: TextStyle(fontSize: 9, color: earned ? AppTheme.textPrimary : AppTheme.textSecondary, fontWeight: earned ? FontWeight.w600 : FontWeight.normal), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
+                                ]),
+                              );
+                            }).toList(),
+                          ),
+                        ],
+                      ),
+                    ),
+
                   // 菜单
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingLg),
@@ -151,8 +200,9 @@ class _ProfilePageState extends State<ProfilePage> {
                       children: [
                         _MenuItem(icon: Icons.emoji_events_outlined, title: '全国排行榜', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RankingPage()))),
                         _MenuItem(icon: Icons.favorite_border, title: '我的收藏', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FavoritesPage()))),
+                        _MenuItem(icon: Icons.emoji_events_outlined, title: '我的徽章', onTap: _showAllBadges),
                         _MenuItem(icon: Icons.edit_outlined, title: '修改昵称', onTap: () => _editNickname(context)),
-                        _MenuItem(icon: Icons.share_outlined, title: '分享给好友', onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('分享功能开发中...')))),
+                        _MenuItem(icon: Icons.share_outlined, title: '分享我的成就', onTap: _shareAchievement),
                       ],
                     ),
                   ),
@@ -160,6 +210,100 @@ class _ProfilePageState extends State<ProfilePage> {
                 ],
               ),
             ),
+    );
+  }
+
+  void _shareAchievement() {
+    final user = context.read<AuthProvider>().user;
+    final earnedCount = _badges.where((b) => b['earned'] == true).length;
+    final text = '🏯 我在「华夏文化探索」中游览了 ${user?.completedCount ?? 0}/34 个地区，'
+        '获得了 ${user?.totalScore ?? 0} 积分和 $earnedCount 枚徽章！\n'
+        '快来一起探索中华文化吧！';
+
+    Clipboard.setData(ClipboardData(text: text));
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
+        title: const Text('分享我的成就'),
+        content: Container(
+          padding: const EdgeInsets.all(AppTheme.spacingLg),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(colors: [Color(0xff8b1e2d), Color(0xffc0392b)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+          ),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('🏯', style: TextStyle(fontSize: 48)),
+            const SizedBox(height: 8),
+            const Text('华夏文化探索', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+            const Divider(color: Colors.white30),
+            _shareLine('🗺️ 已探索', '${user?.completedCount ?? 0} / 34 地区'),
+            _shareLine('⭐ 总积分', '${user?.totalScore ?? 0} 分'),
+            _shareLine('🏅 徽章', '$earnedCount / ${_badges.length}'),
+            const SizedBox(height: 12),
+            const Text('一起来探索中华文化吧！', style: TextStyle(color: Colors.white70, fontSize: 13)),
+          ]),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: text));
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已复制分享文案！'), duration: Duration(seconds: 2)));
+            },
+            child: const Text('复制文案'),
+          ),
+          FilledButton(onPressed: () => Navigator.pop(context), child: const Text('完成')),
+        ],
+      ),
+    );
+  }
+
+  Widget _shareLine(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 14)),
+        Text(value, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+      ]),
+    );
+  }
+
+  void _showAllBadges() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
+        title: const Text('我的徽章'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Wrap(
+            spacing: AppTheme.spacingMd,
+            runSpacing: AppTheme.spacingMd,
+            children: _badges.map((b) {
+              final earned = b['earned'] == true;
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 56, height: 56,
+                    decoration: BoxDecoration(
+                      color: earned ? AppTheme.surface : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      border: Border.all(color: earned ? AppTheme.accent.withValues(alpha: 0.3) : Colors.grey.shade200),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(earned ? (b['badgeIcon'] ?? '🏅') as String : '🔒', style: const TextStyle(fontSize: 28)),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(b['badgeName'] ?? '', style: TextStyle(fontSize: 11, color: earned ? AppTheme.textPrimary : AppTheme.textSecondary), textAlign: TextAlign.center),
+                ],
+              );
+            }).toList(),
+          ),
+        ),
+        actions: [FilledButton(onPressed: () => Navigator.pop(context), child: const Text('确定'))],
+      ),
     );
   }
 
@@ -195,7 +339,7 @@ class _StatCard extends StatelessWidget {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(AppTheme.spacingLg),
-        decoration: BoxDecoration(color: AppTheme.surface, borderRadius: BorderRadius.circular(AppTheme.radiusLg), boxShadow: [BoxShadow(color: color.withOpacity(0.1), blurRadius: 12, offset: const Offset(0, 4))]),
+        decoration: BoxDecoration(color: AppTheme.surface, borderRadius: BorderRadius.circular(AppTheme.radiusLg), boxShadow: [BoxShadow(color: color.withValues(alpha: 0.1), blurRadius: 12, offset: const Offset(0, 4))]),
         child: Column(children: [
           Icon(icon, size: 22, color: color),
           const SizedBox(height: AppTheme.spacingSm),

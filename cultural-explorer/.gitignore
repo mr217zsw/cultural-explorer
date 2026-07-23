@@ -6,4 +6,9 @@ build/
 .idea/
 .vscode/
 *.log
+audio-output/
+tsc_errors.txt
+*.pub-cache/
+public/covers/
+public/audio/
 

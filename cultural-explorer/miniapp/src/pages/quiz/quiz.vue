@@ -30,6 +30,10 @@
       <view class="lives">
         <text v-for="i in 3" :key="i" class="heart" :class="{ lost: i > lives }">❤️</text>
       </view>
+      <view class="timer-box" :class="{ urgent: timeLeft <= 5 }">
+        <text class="timer-icon">⏱</text>
+        <text class="timer-num">{{ timeLeft }}s</text>
+      </view>
       <view class="score-box">
         <text class="score-num">{{ totalScore }}</text>
         <text class="score-unit">分</text>
@@ -48,10 +52,23 @@
       <text class="type-tag">{{ typeLabel(current.type) }}</text>
     </view>
 
+    <!-- 提示 -->
+    <view v-if="hintText" class="hint-box">
+      <text class="hint-label">💡</text>
+      <text class="hint-text">{{ hintText }}</text>
+      <text class="hint-close" @tap="hintText = ''">✕</text>
+    </view>
+
     <!-- 题干 -->
     <view class="question">
       <text class="question-label">Q</text>
       <text class="question-text">{{ current.question }}</text>
+    </view>
+
+    <!-- 提示按钮 -->
+    <view v-if="!showFeedback" class="hint-btn" @tap="getHint">
+      <text class="hint-btn-icon">💡</text>
+      <text class="hint-btn-text">获取提示 (-5积分)</text>
     </view>
 
     <!-- 选项 -->
@@ -105,7 +122,7 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-import { onLoad } from '@dcloudio/uni-app';
+import { onLoad, onUnload } from '@dcloudio/uni-app';
 import { ensureLogin, request } from '../../api/index.js';
 
 const questions = ref([]);
@@ -125,9 +142,12 @@ const lastAnsIdx = ref(-1);
 const lastExplanation = ref('');
 const correctInfo = ref('');
 const multiSelected = ref([]);
+const hintText = ref('');
+const timeLeft = ref(30);
 const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
 let regionId = '';
 let regionName = '';
+let timerInterval = null;
 
 const current = computed(() => questions.value[currentIndex.value]);
 const isLastQuestion = computed(() => currentIndex.value >= questions.value.length - 1);
@@ -139,6 +159,33 @@ const grade = computed(() => {
   return 'C';
 });
 
+function startTimer(seconds) {
+  clearTimer();
+  timeLeft.value = seconds;
+  timerInterval = setInterval(() => {
+    timeLeft.value--;
+    if (timeLeft.value <= 0) {
+      clearTimer();
+      autoSubmit();
+    }
+  }, 1000);
+}
+
+function clearTimer() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  hintText.value = '';
+}
+
+function autoSubmit() {
+  const q = current.value;
+  if (q.type === 'multiple') {
+    if (multiSelected.value.length >= 2) submitMulti();
+    else { nextQuestion(); }
+  } else {
+    submit(-1);
+  }
+}
+
 function typeLabel(type) {
   return type === 'multiple' ? '多选' : type === 'truefalse' ? '判断' : '单选';
 }
@@ -148,6 +195,8 @@ onLoad(async (options) => {
   regionName = decodeURIComponent(options.name || '');
   uni.setNavigationBarTitle({ title: regionName + '闯关' });
 });
+
+onUnload(() => { clearTimer(); });
 
 async function startQuiz() {
   try {
@@ -159,6 +208,10 @@ async function startQuiz() {
     questions.value = data.questions;
     lives.value = data.lives;
     quizStarted.value = true;
+    // Start timer for first question
+    if (data.questions && data.questions.length) {
+      startTimer(data.questions[0].timeLimit || 30);
+    }
   } catch (e) {
     // 降级到 V1 API
     try {
@@ -166,6 +219,7 @@ async function startQuiz() {
       questions.value = data.questions || data.data?.questions;
       lives.value = 3;
       quizStarted.value = true;
+      startTimer(30);
     } catch (e2) {
       uni.showToast({ title: '加载失败', icon: 'none' });
     }
@@ -175,6 +229,7 @@ async function startQuiz() {
 async function submit(idx) {
   showFeedback.value = false;
   lastAnsIdx.value = idx;
+  clearTimer();
   try {
     const result = await request('/quiz/submitV2', {
       method: 'POST',
@@ -182,16 +237,7 @@ async function submit(idx) {
     });
     handleResult(result, idx);
   } catch (e) {
-    // V1 fallback
-    if (isLastQuestion.value) {
-      const allAnswers = [{ questionId: current.value.id, selectedIndex: idx }];
-      const result = await request('/quiz/complete', {
-        method: 'POST', data: { regionId, answers: allAnswers, timeSpent: 10 },
-      });
-      finishQuizV1(result);
-    } else {
-      currentIndex.value++;
-    }
+    finishQuizV1Fallback();
   }
 }
 
@@ -205,6 +251,7 @@ function toggleMulti(i) {
 
 async function submitMulti() {
   showFeedback.value = false;
+  clearTimer();
   try {
     const result = await request('/quiz/submitV2', {
       method: 'POST',
@@ -214,6 +261,27 @@ async function submitMulti() {
     multiSelected.value = [];
   } catch (e) {
     uni.showToast({ title: '提交失败', icon: 'none' });
+  }
+}
+
+async function getHint() {
+  try {
+    const result = await request('/quiz/hint', {
+      method: 'POST',
+      data: { questionId: current.value.id },
+    });
+    hintText.value = result.hint;
+    uni.showToast({ title: `消耗 ${result.cost} 积分`, icon: 'none' });
+  } catch (e) {
+    uni.showToast({ title: e?.data?.message || '获取提示失败', icon: 'none' });
+  }
+}
+
+function finishQuizV1Fallback() {
+  if (isLastQuestion.value) {
+    finishQuizV1({ reward: { earnedScore: totalScore.value }, correctCount: correctCount.value });
+  } else {
+    currentIndex.value++;
   }
 }
 
@@ -242,12 +310,17 @@ function nextQuestion() {
   if (isLastQuestion.value || lives.value <= 0) {
     finalScore.value = totalScore.value;
     quizFinished.value = true;
+    clearTimer();
   } else {
     currentIndex.value++;
+    // Start timer for next question
+    const nextQ = questions.value[currentIndex.value];
+    startTimer(nextQ?.timeLimit || 30);
   }
 }
 
 function finishQuizV1(result) {
+  clearTimer();
   finalScore.value = result.reward?.earnedScore || 0;
   correctCount.value = result.correctCount || 0;
   quizFinished.value = true;
@@ -274,6 +347,12 @@ function goBack() { uni.navigateBack(); }
 .lives { display: flex; gap: 4rpx; }
 .heart { font-size: 32rpx; transition: opacity 0.3s; }
 .heart.lost { opacity: 0.2; }
+.timer-box { display: flex; align-items: center; gap: 2rpx; padding: 4rpx 14rpx; border-radius: 40rpx; background: rgba(139,30,45,0.08); }
+.timer-box.urgent { background: #e74c3c; }
+.timer-icon { font-size: 22rpx; }
+.timer-num { font-size: 24rpx; font-weight: 800; color: #8b1e2d; }
+.timer-box.urgent .timer-num { color: #fff; }
+.timer-box.urgent .timer-icon { filter: brightness(10); }
 .score-box { background: #f5a623; color: #fff; padding: 6rpx 20rpx; border-radius: 40rpx; display: flex; align-items: center; gap: 2rpx; }
 .score-num { font-size: 28rpx; font-weight: 800; }
 .score-unit { font-size: 20rpx; opacity: 0.8; }
@@ -329,6 +408,15 @@ function goBack() { uni.navigateBack(); }
 .back-btn { width: 400rpx; font-size: 32rpx; }
 
 .empty { text-align: center; padding-top: 200rpx; color: #8c7568; }
+
+/* 提示 */
+.hint-box { margin-bottom: 16rpx; padding: 16rpx 20rpx; background: #fff3cd; border-radius: 12rpx; display: flex; align-items: flex-start; gap: 8rpx; }
+.hint-label { font-size: 28rpx; flex-shrink: 0; }
+.hint-text { flex: 1; font-size: 24rpx; color: #856404; line-height: 1.5; }
+.hint-close { font-size: 28rpx; color: #856404; padding: 0 4rpx; flex-shrink: 0; }
+.hint-btn { display: flex; align-items: center; justify-content: center; gap: 6rpx; margin-top: 16rpx; padding: 12rpx; }
+.hint-btn-icon { font-size: 24rpx; }
+.hint-btn-text { font-size: 24rpx; color: #f5a623; }
 
 .page { min-height: 100vh; padding: 24rpx; background: #fffaf0; }
 </style>

@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../common/redis.service';
 
@@ -18,6 +19,7 @@ export class QuizV2Service {
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
+    private config: ConfigService,
   ) {}
 
   /** 开始闯关 - 支持难度分级 */
@@ -37,7 +39,7 @@ export class QuizV2Service {
     const session: QuizSession = {
       regionId,
       difficulty,
-      questionIds: shuffled.map(q => q.id),
+      questionIds: shuffled.map((q: { id: string }) => q.id),
       currentIndex: 0,
       lives: 3,
       combo: 0,
@@ -52,7 +54,7 @@ export class QuizV2Service {
       totalQuestions: shuffled.length,
       difficulty,
       lives: session.lives,
-      questions: shuffled.map(q => ({
+      questions: shuffled.map((q: { id: string; type: string; question: string; options: string[]; difficulty: number; tags: string[] }) => ({
         id: q.id,
         type: q.type,
         question: q.question,
@@ -191,6 +193,52 @@ export class QuizV2Service {
         },
       });
     }
+  }
+
+  /** 获取提示 - 消耗5积分 */
+  async getHint(userId: string, questionId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new BadRequestException('用户不存在');
+    if (user.totalScore < 5) throw new BadRequestException('积分不足，获取提示需要5积分');
+
+    const question = await this.prisma.question.findUnique({ where: { id: questionId } });
+    if (!question) throw new BadRequestException('题目不存在');
+
+    // 用 AI 生成提示
+    const apiKey = this.config.get<string>('DEEPSEEK_API_KEY');
+    let hint = `这道题与"${question.tags?.join('、') || question.category}"相关，请仔细回忆相关知识。`;
+
+    if (apiKey) {
+      try {
+        const resp = await fetch(
+          `${this.config.get('DEEPSEEK_BASE_URL', 'https://api.deepseek.com')}/chat/completions`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+            body: JSON.stringify({
+              model: 'deepseek-chat',
+              max_tokens: 100,
+              messages: [{
+                role: 'user',
+                content: `请为这道题目给出一个巧妙的提示（不要给出答案，只给提示，20字以内）："${question.question}" 选项：${(question.options as string[]).join('、')}`,
+              }],
+            }),
+          },
+        );
+        if (resp.ok) {
+          const data = await resp.json() as { choices?: { message?: { content?: string } }[] };
+          if (data.choices?.[0]?.message?.content) hint = data.choices[0].message.content.trim();
+        }
+      } catch { /* fallback to default hint */ }
+    }
+
+    // 扣除积分
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { totalScore: { decrement: 5 } },
+    });
+
+    return { hint, cost: 5 };
   }
 
   /** 多题型答案校验 */

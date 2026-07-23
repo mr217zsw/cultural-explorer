@@ -154,7 +154,14 @@ function goRanking() {
 }
 
 function shareApp() {
-  uni.showToast({ title: '分享功能开发中', icon: 'none' });
+  const earnedCount = badges.value.filter(b => b.earned).length;
+  const shareText = `🏯 我在「华夏文化探索」中游览了 ${profile.value.completedCount || 0}/34 个地区，获得了 ${profile.value.totalScore || 0} 积分和 ${earnedCount} 枚徽章！\n快来一起探索中华文化吧！`;
+  uni.setClipboardData({
+    data: shareText,
+    success: () => {
+      uni.showToast({ title: '分享文案已复制！', icon: 'success' });
+    },
+  });
 }
 </script>
 

@@ -19,6 +19,7 @@ import { CuisineModule } from './cuisine/cuisine.module';
 import { HeritageModule } from './heritage/heritage.module';
 import { CheckinModule } from './checkin/checkin.module';
 import { BadgeModule } from './badge/badge.module';
+import { AdminModule } from './admin/admin.module';
 
 @Controller('health')
 class HealthController {
@@ -50,6 +51,7 @@ class HealthController {
     HeritageModule,
     CheckinModule,
     BadgeModule,
+    AdminModule,
   ],
   controllers: [HealthController],
 })

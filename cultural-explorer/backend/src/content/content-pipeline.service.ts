@@ -77,8 +77,9 @@ JSON格式：
 
       const content = response.data.choices[0].message.content;
       return JSON.parse(content) as DeepRegionContent;
-    } catch (err) {
-      this.logger.error(`Content generation failed for ${region.name}: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Content generation failed for ${region.name}: ${message}`);
       throw err;
     }
   }

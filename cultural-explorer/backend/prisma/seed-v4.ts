@@ -48,7 +48,7 @@ async function generateContent(name: string): Promise<any> {
 }
 要求：内容真实，描述生动，大众化，每个历史时间轴至少10条，名人至少5位，非遗至少3项，美食至少3道。`;
 
-  const resp = await fetch(`${BASE_URL}/v1/chat/completions`, {
+  const resp = await fetch(`${BASE_URL}/chat/completions`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${API_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({

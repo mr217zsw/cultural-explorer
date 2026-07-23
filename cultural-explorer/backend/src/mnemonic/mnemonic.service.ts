@@ -72,7 +72,7 @@ export class MnemonicService {
                 },
                 {
                   role: 'user',
-                  content: `请为"${region.name}"创作记忆口诀。\n省会：${region.capital}\n地理：${region.geography.slice(0, 120)}\n历史：${region.history.slice(0, 120)}\n文化：${region.culture.slice(0, 120)}\n代表地标：${region.landmarks.map((l) => l.name).join('、')}`,
+                  content: `请为"${region.name}"创作记忆口诀。\n省会：${region.capital}\n地理：${region.geography.slice(0, 120)}\n历史：${region.history.slice(0, 120)}\n文化：${region.culture.slice(0, 120)}\n代表地标：${region.landmarks.map((l: { name: string }) => l.name).join('、')}`,
                 },
               ],
             }),

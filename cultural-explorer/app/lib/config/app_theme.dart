@@ -186,4 +186,50 @@ class AppTheme {
       ),
     );
   }
+
+  // ── 暗色 ThemeData ──
+  static ThemeData get darkThemeData {
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: const Color(0xffd45a5a),
+      brightness: Brightness.dark,
+      primary: const Color(0xffd45a5a),
+      secondary: const Color(0xffffb84d),
+      surface: const Color(0xff2a2218),
+    );
+
+    return ThemeData(
+      colorScheme: colorScheme,
+      useMaterial3: true,
+      scaffoldBackgroundColor: const Color(0xff1a1410),
+
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Color(0xff2a2218),
+        foregroundColor: Color(0xffe8dcc8),
+        centerTitle: true,
+        elevation: 0,
+      ),
+
+      cardTheme: CardThemeData(
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusLg)),
+        color: const Color(0xff2a2218),
+        margin: EdgeInsets.zero,
+      ),
+
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: const Color(0xffd45a5a),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.all(spacingLg),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusXl)),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+      ),
+
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: Color(0xffd45a5a),
+        linearTrackColor: Color(0xff3a3028),
+      ),
+    );
+  }
 }

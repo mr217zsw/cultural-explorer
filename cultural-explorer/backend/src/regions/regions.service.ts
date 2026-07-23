@@ -1,15 +1,26 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 type ListQuery = { page: number; limit: number; keyword?: string; sort?: string };
+
+interface RegionListItem {
+  id: string;
+  name: string;
+  nameEn: string | null;
+  shortName: string | null;
+  capital: string | null;
+  description: string;
+  coverImage: string | null;
+  viewCount: number;
+  favoriteCount: number;
+}
 
 @Injectable()
 export class RegionsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async list(query: ListQuery, userId?: string) {
-    const where: Prisma.RegionWhereInput = {
+    const where: Record<string, unknown> = {
       isPublished: true,
       ...(query.keyword ? { OR: [
         { name: { contains: query.keyword, mode: 'insensitive' } },
@@ -17,17 +28,18 @@ export class RegionsService {
         { description: { contains: query.keyword, mode: 'insensitive' } },
       ] } : {}),
     };
-    const orderBy: Prisma.RegionOrderByWithRelationInput = ['viewCount', 'favoriteCount', 'createdAt'].includes(query.sort ?? '')
+    const orderBy: Record<string, string> = ['viewCount', 'favoriteCount', 'createdAt'].includes(query.sort ?? '')
       ? { [query.sort!]: 'desc' }
       : { sortOrder: 'asc' };
     const [items, total] = await this.prisma.$transaction([
-      this.prisma.region.findMany({ where, orderBy, skip: (query.page - 1) * query.limit, take: query.limit, select: { id: true, name: true, nameEn: true, shortName: true, capital: true, description: true, coverImage: true, viewCount: true, favoriteCount: true } }),
-      this.prisma.region.count({ where }),
+      this.prisma.region.findMany({ where: where as any, orderBy: orderBy as any, skip: (query.page - 1) * query.limit, take: query.limit, select: { id: true, name: true, nameEn: true, shortName: true, capital: true, description: true, coverImage: true, viewCount: true, favoriteCount: true } }),
+      this.prisma.region.count({ where: where as any }),
     ]);
-    const records = userId ? await this.prisma.userRecord.findMany({ where: { userId, regionId: { in: items.map((item) => item.id) } } }) : [];
-    const progress = new Map(records.map((record) => [record.regionId, record]));
+    const typedItems = items as RegionListItem[];
+    const records = userId ? await this.prisma.userRecord.findMany({ where: { userId, regionId: { in: typedItems.map((item: RegionListItem) => item.id) } } }) : [];
+    const progress = new Map(records.map((record: { regionId: string }) => [record.regionId, record]));
     return {
-      items: items.map((item) => ({ ...item, userProgress: progress.get(item.id) ?? null })),
+      items: typedItems.map((item: RegionListItem) => ({ ...item, userProgress: progress.get(item.id) ?? null })),
       pagination: { page: query.page, limit: query.limit, total, totalPages: Math.ceil(total / query.limit), hasMore: query.page * query.limit < total },
     };
   }

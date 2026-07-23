@@ -15,13 +15,13 @@ export class QuizController {
 
   // ===== 旧版 API（兼容） =====
   @Post('start') @UseGuards(JwtAuthGuard)
-  start(@Body() body: { regionId: string }, @CurrentUser() user: { sub: string }) {
-    return this.quiz.start(user.sub, body.regionId);
+  start(@Body() body: { regionId: string }) {
+    return this.quiz.start(body.regionId);
   }
 
   @Post('submit') @UseGuards(JwtAuthGuard)
-  submit(@Body() body: any, @CurrentUser() user: { sub: string }) {
-    return this.quiz.submit(user.sub, body);
+  submit(@Body() body: { questionId: string; selectedIndex: number }) {
+    return this.quiz.submit(body.questionId, body.selectedIndex);
   }
 
   @Post('complete') @UseGuards(JwtAuthGuard)
@@ -53,5 +53,10 @@ export class QuizController {
     const result = await this.quizV2.submit(user.sub, body.questionId, body.answer);
     if (result.isGameOver) await this.badge.checkAndAward(user.sub);
     return result;
+  }
+
+  @Post('hint') @UseGuards(JwtAuthGuard)
+  hint(@Body() body: { questionId: string }, @CurrentUser() user: { sub: string }) {
+    return this.quizV2.getHint(user.sub, body.questionId);
   }
 }

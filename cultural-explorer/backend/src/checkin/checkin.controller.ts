@@ -1,10 +1,10 @@
 import { Controller, Post, Get, UseGuards } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../common/current-user.decorator';
 import { CheckinService } from './checkin.service';
 
 @Controller('checkin')
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(JwtAuthGuard)
 export class CheckinController {
   constructor(private readonly checkinService: CheckinService) {}
 

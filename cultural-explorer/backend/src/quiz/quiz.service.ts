@@ -1,5 +1,4 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -25,9 +24,9 @@ export class QuizService {
   async complete(userId: string, input: CompleteInput) {
     const questions = await this.prisma.question.findMany({ where: { regionId: input.regionId } });
     if (!questions.length) throw new NotFoundException('该地区暂无题目');
-    const answerMap = new Map(input.answers.map((answer) => [answer.questionId, answer.selectedIndex]));
-    const details = questions.map((question) => ({ questionId: question.id, selectedIndex: answerMap.get(question.id) ?? -1, correctIndex: question.correctAnswer, correct: answerMap.get(question.id) === question.correctAnswer }));
-    const correctCount = details.filter((item) => item.correct).length;
+    const answerMap = new Map(input.answers.map((answer: { questionId: string; selectedIndex: number }) => [answer.questionId, answer.selectedIndex]));
+    const details = questions.map((question: { id: string; correctAnswer: number }) => ({ questionId: question.id, selectedIndex: answerMap.get(question.id) ?? -1, correctIndex: question.correctAnswer, correct: answerMap.get(question.id) === question.correctAnswer }));
+    const correctCount = details.filter((item: { correct: boolean }) => item.correct).length;
     const accuracy = correctCount / questions.length;
     const isCompleted = accuracy >= 0.6;
     const baseScore = correctCount * 20;
@@ -39,8 +38,8 @@ export class QuizService {
     await this.prisma.$transaction([
       this.prisma.userRecord.upsert({
         where: { userId_regionId: { userId, regionId: input.regionId } },
-        update: { score: Math.max(baseScore + bonus, oldRecord?.score ?? 0), totalQuestions: questions.length, correctCount, wrongCount: questions.length - correctCount, timeSpent: input.timeSpent, isCompleted: oldRecord?.isCompleted || isCompleted, completedAt: firstCompletion ? new Date() : oldRecord?.completedAt, answers: details as Prisma.InputJsonValue },
-        create: { userId, regionId: input.regionId, score: baseScore + bonus, totalQuestions: questions.length, correctCount, wrongCount: questions.length - correctCount, timeSpent: input.timeSpent, isCompleted, completedAt: isCompleted ? new Date() : null, answers: details as Prisma.InputJsonValue },
+        update: { score: Math.max(baseScore + bonus, oldRecord?.score ?? 0), totalQuestions: questions.length, correctCount, wrongCount: questions.length - correctCount, timeSpent: input.timeSpent, isCompleted: oldRecord?.isCompleted || isCompleted, completedAt: firstCompletion ? new Date() : oldRecord?.completedAt, answers: details as any },
+        create: { userId, regionId: input.regionId, score: baseScore + bonus, totalQuestions: questions.length, correctCount, wrongCount: questions.length - correctCount, timeSpent: input.timeSpent, isCompleted, completedAt: isCompleted ? new Date() : null, answers: details as any },
       }),
       this.prisma.user.update({
         where: { id: userId },

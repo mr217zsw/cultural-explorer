@@ -46,8 +46,9 @@ export class TTSService {
       const audioUrl = await this.pollTask(taskId);
       const audioResponse = await axios.get(audioUrl, { responseType: 'arraybuffer' });
       return Buffer.from(audioResponse.data);
-    } catch (err) {
-      this.logger.error(`TTS generation failed: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.error(`TTS generation failed: ${message}`);
       throw err;
     }
   }

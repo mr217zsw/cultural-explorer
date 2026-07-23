@@ -22,6 +22,8 @@ class CulturalExplorerApp extends StatelessWidget {
       title: '华夏文化探索',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.themeData,
+      darkTheme: AppTheme.darkThemeData,
+      themeMode: ThemeMode.system,
       home: const SplashPage(),
     );
   }
